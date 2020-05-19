@@ -4,6 +4,9 @@ import csv
 from collections import OrderedDict
 from copy import deepcopy
 import pendulum
+from os import listdir
+from os.path import isfile, join
+import camelot
 
 CHILEAN_POPULATION = 19458310
 BASE_PLACE = {
@@ -216,6 +219,40 @@ class DataOrganizer:
                 "is_active": row["is_active"] == "TRUE",
                 "text": row["text"],
             }
+    
+    def process_seremi_valparaiso(self):
+        reportes_path = "./reportes_seremi_valparaiso/"
+        last_report_filename = sorted(
+            [f for f in listdir(reportes_path) if isfile(join(reportes_path, f))],
+            reverse=True,
+        )[0]
+        last_report_date = "2020-" + last_report_filename[-9:-4]
+        communes_table = camelot.read_pdf(
+            join(reportes_path, last_report_filename),
+            pages="1",
+        )[0]
+        for row in communes_table.df.itertuples(index=True, name="Pandas"):
+            if row[1] in self.all_comunas:
+                commune_name = self.fix_comuna(row[1])
+                confirmados = parse_string_int(row[3])
+                fallecidos = parse_string_int(row[5])
+                recuperados = parse_string_int(row[6])
+                activos_value = confirmados - fallecidos - recuperados
+                commune = self.chile["regiones"]["Valparaíso"]["comunas"][commune_name]
+                if commune["activos"]["date"] < last_report_date:
+                    commune["previous"]["activos"] = {
+                        "date": commune["activos"]["date"],
+                        "value": commune["activos"]["value"]
+                    }
+                    commune["activos"] = {
+                        "date": last_report_date,
+                        "value": activos_value
+                    }
+                    commune["tasa_activos"] = {
+                        "date": last_report_date,
+                        "value": (activos_value / commune["poblacion"]) * 100000
+                    }
+                    commune["series"]["activos"].append(commune["activos"])
 
     def save_data(self):
         with open("./data/chile.json", "w") as outfile:
@@ -232,4 +269,5 @@ organizer.fill_comunas_data()
 organizer.calculate_recuperados_regiones()
 organizer.add_regiones_complete_names()
 organizer.add_quarantines_to_communes()
+organizer.process_seremi_valparaiso()
 organizer.save_data()
