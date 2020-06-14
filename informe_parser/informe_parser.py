@@ -79,8 +79,12 @@ class InformeParser:
                 if row[2] != "Total":
                     comuna = self.fix_comuna(row[2])
                     self.casos_por_comuna[comuna]=self.casos_por_comuna[comuna].replace(".", "").replace(",", ".")
-                    comuna_casos = float(self.casos_por_comuna[comuna]) if self.casos_por_comuna[comuna] else 0
-                    row.append(comuna_casos)
+                    if name != 'TasaDeIncidecia':
+                        comuna_casos = float(self.casos_por_comuna[comuna]) if self.casos_por_comuna[comuna] else 0
+                        row.append(comuna_casos)
+                    else:
+                        comuna_casos = int(self.casos_por_comuna[comuna]) if self.casos_por_comuna[comuna] else 0
+                        row.append(comuna_casos)
                 else:
                     row.append(region_casos)
                     region_casos = 0
